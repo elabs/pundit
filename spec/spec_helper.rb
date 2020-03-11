@@ -196,10 +196,10 @@ class DenierPolicy < Struct.new(:user, :record)
 end
 
 class Controller
-  include Pundit
+  include Pundit::Authorization
   # Mark protected methods public so they may be called in test
   # rubocop:disable Style/AccessModifierDeclarations
-  public(*Pundit.protected_instance_methods)
+  public(*Pundit::Authorization.protected_instance_methods)
   # rubocop:enable Style/AccessModifierDeclarations
 
   attr_reader :current_user, :action_name, :params

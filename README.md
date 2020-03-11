@@ -26,11 +26,11 @@ Sponsored by:
 gem "pundit"
 ```
 
-Include Pundit in your application controller:
+Include `Pundit::Authorization` in your application controller:
 
 ``` ruby
 class ApplicationController < ActionController::Base
-  include Pundit
+  include Pundit::Authorization
   protect_from_forgery
 end
 ```
@@ -337,7 +337,7 @@ that you haven't forgotten to authorize the action. For example:
 
 ``` ruby
 class ApplicationController < ActionController::Base
-  include Pundit
+  include Pundit::Authorization
   after_action :verify_authorized
 end
 ```
@@ -350,7 +350,7 @@ authorize individual instances.
 
 ``` ruby
 class ApplicationController < ActionController::Base
-  include Pundit
+  include Pundit::Authorization
   after_action :verify_authorized, except: :index
   after_action :verify_policy_scoped, only: :index
 end
@@ -494,7 +494,7 @@ method in every controller.
 ```ruby
 class ApplicationController < ActionController::Base
   protect_from_forgery
-  include Pundit
+  include Pundit::Authorization
 
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
@@ -687,7 +687,7 @@ class UserContext
 end
 
 class ApplicationController
-  include Pundit
+  include Pundit::Authorization
 
   def pundit_user
     UserContext.new(current_user, request.ip)
