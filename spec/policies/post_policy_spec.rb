@@ -19,4 +19,10 @@ RSpec.describe PostPolicy do
       end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
   end
+
+  permissions :create? do
+    it 'fails' do
+      should_not permit(user, own_post)
+    end
+  end
 end
