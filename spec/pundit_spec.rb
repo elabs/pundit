@@ -484,6 +484,16 @@ RSpec.describe Pundit do
     it "raises an error with a invalid policy constructor" do
       expect { controller.authorize(wiki, :destroy?) }.to raise_error(Pundit::InvalidConstructorError)
     end
+
+    it "raises an error with class name when passed Class" do
+      expect { controller.authorize(Post, :index?) }
+        .to raise_error(Pundit::NotAuthorizedError, "not allowed to index? Post")
+    end
+
+    it "raises an error with class name when passed record" do
+      expect { controller.authorize(post, :destroy?) }
+        .to raise_error(Pundit::NotAuthorizedError, "not allowed to destroy? this Post")
+    end
   end
 
   describe "#skip_authorization" do

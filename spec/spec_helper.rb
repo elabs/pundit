@@ -35,6 +35,10 @@ class PostPolicy < Struct.new(:user, :post)
     true
   end
 
+  def index?
+    false
+  end
+
   def permitted_attributes
     if post.user == user
       %i[title votes]
