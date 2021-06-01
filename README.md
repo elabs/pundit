@@ -569,8 +569,7 @@ end
 Then you can get this error message in exception handler:
 ```ruby
 rescue_from Pundit::NotAuthorizedError do |e|
-  message = e.reason ? I18n.t("pundit.errors.#{e.reason}") : e.message
-  flash[:error] = message, scope: "pundit", default: :default
+  flash[:error] = e.reason ? I18n.t("errors.#{e.reason}", scope: "pundit") : e.message
   redirect_to(request.referrer || root_path)
 end
 ```
