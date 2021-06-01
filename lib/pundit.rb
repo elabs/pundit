@@ -33,7 +33,9 @@ module Pundit
         @policy = options[:policy]
         @reason = options[:reason]
 
-        message = options.fetch(:message) { "not allowed to #{query} this #{record.class}" }
+        message = options[:message] ||
+                  policy.try(:error_message) ||
+                  "not allowed to #{query} this #{record.class}"
       end
 
       super(message)

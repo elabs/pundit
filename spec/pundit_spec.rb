@@ -625,9 +625,49 @@ RSpec.describe Pundit do
   end
 
   describe "Pundit::NotAuthorizedError" do
-    it "can be initialized with a string as message" do
-      error = Pundit::NotAuthorizedError.new("must be logged in")
-      expect(error.message).to eq "must be logged in"
+    let(:error) { Pundit::NotAuthorizedError.new(init_arg) }
+    let(:expected_message) { "lorem ipsum dolor" }
+
+    shared_examples "for error message" do
+      it "sets the appropriate error message" do
+        expect(error.message).to eq expected_message
+      end
+    end
+
+    context "initialized with a string" do
+      let(:init_arg) { expected_message }
+
+      include_examples "for error message"
+    end
+
+    context "initialized with a hash" do
+      let(:init_arg) do
+        { message: expected_message,
+          query: :show?,
+          record: post,
+          policy: Pundit.policy(user, post) }
+      end
+
+      context "containing :message" do
+        include_examples "for error message"
+      end
+
+      context "containing :policy with an #error_message" do
+        before do
+          init_arg.except!(:message)
+          init_arg[:policy].error_message = expected_message
+        end
+
+        include_examples "for error message"
+      end
+
+      context "containing :policy with no #error_message" do
+        before { init_arg.except!(:message) }
+
+        let(:expected_message) { "not allowed to show? this #{post.class}" }
+
+        include_examples "for error message"
+      end
     end
   end
 end

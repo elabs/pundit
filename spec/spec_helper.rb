@@ -16,7 +16,7 @@ require "active_support/core_ext"
 require "active_model/naming"
 require "action_controller/metal/strong_parameters"
 
-class PostPolicy < Struct.new(:user, :post)
+class PostPolicy < Struct.new(:user, :post, :error_message)
   class Scope < Struct.new(:user, :scope)
     def resolve
       scope.published

@@ -481,17 +481,24 @@ class NilClassPolicy < ApplicationPolicy
 end
 ```
 
-## Rescuing a denied Authorization in Rails
+## Handling `Pundit::NotAuthorizedError`
 
-Pundit raises a `Pundit::NotAuthorizedError` you can
-[rescue_from](http://guides.rubyonrails.org/action_controller_overview.html#rescue-from)
-in your `ApplicationController`. You can customize the `user_not_authorized`
-method in every controller.
+When `#authorize` fails, Pundit raises an error.
+For a coarse, one-line approach to handling all failed authorizations,
+set up an application-wide 403 Forbidden response
+any time this error is encountered:
+
+```ruby
+# application.rb
+
+config.action_dispatch.rescue_responses["Pundit::NotAuthorizedError"] = :forbidden
+```
+
+For more fine-grained control, [`rescue_from`][] this exception
+in your application controller:
 
 ```ruby
 class ApplicationController < ActionController::Base
-  include Pundit
-
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
   private
@@ -503,85 +510,149 @@ class ApplicationController < ActionController::Base
 end
 ```
 
-Alternatively, you can globally handle Pundit::NotAuthorizedError's by having rails handle them as a 403 error and serving a 403 error page. Add the following to application.rb:
+To customize this response on a per-controller basis, simply define
+`#user_not_authorized` in other controllers as necessary.
 
-```config.action_dispatch.rescue_responses["Pundit::NotAuthorizedError"] = :forbidden```
+[`rescue_from`]: http://guides.rubyonrails.org/action_controller_overview.html#rescue-from
 
-## Creating custom error messages
+### Customizing the flash message
 
-`NotAuthorizedError`s provide information on what query (e.g. `:create?`), what
-record (e.g. an instance of `Post`), and what policy (e.g. an instance of
-`PostPolicy`) caused the error to be raised.
-
-One way to use these `query`, `record`, and `policy` properties is to connect
-them with `I18n` to generate error messages. Here's how you might go about doing
-that.
+In the example above,
+we show the user the same error message any time authorization fails.
+But we can also dynamically generate more detailed messages
+using metadata attributes stored on the exception object itself:
 
 ```ruby
-class ApplicationController < ActionController::Base
- rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
+def user_not_authorized(exception)
+  flash[:alert] = case exception.query
+                  when :show?
+                    "That #{exception.record.class} is not available."
+                  when :update?
+                    "That #{exception.record.class} cannot be modified."
+                  else
+                    exception.message
+                  end
 
- private
-
- def user_not_authorized(exception)
-   policy_name = exception.policy.class.to_s.underscore
-
-   flash[:error] = t "#{policy_name}.#{exception.query}", scope: "pundit", default: :default
-   redirect_to(request.referrer || root_path)
- end
-end
-```
-
-```yaml
-en:
- pundit:
-   default: 'You cannot perform this action.'
-   post_policy:
-     update?: 'You cannot edit this post!'
-     create?: 'You cannot create posts!'
-```
-
-Of course, this is just an example. Pundit is agnostic as to how you implement
-your error messaging.
-
-## Multiple error messages per one policy action
-
-If there are multiple reasons that authorization can be denied, you can show different messages by raising exceptions in your policy:
-
-In your policy class raise `Pundit::NotAuthorizedError` with custom error message or I18n key in `reason` argument:
-
-```ruby
-class ProjectPolicy < ApplicationPolicy
-  def create?
-    if user.has_paid_subscription?
-      if user.project_limit_reached?
-        raise Pundit::NotAuthorizedError, reason: 'user.project_limit_reached'
-      else
-        true
-      end
-    else
-      raise Pundit::NotAuthorizedError, reason: 'user.paid_subscription_required'
-    end
-  end
-end
-```
-
-Then you can get this error message in exception handler:
-```ruby
-rescue_from Pundit::NotAuthorizedError do |e|
-  message = e.reason ? I18n.t("pundit.errors.#{e.reason}") : e.message
-  flash[:error] = message, scope: "pundit", default: :default
   redirect_to(request.referrer || root_path)
 end
 ```
 
+These metadata attributes are described below:
+
+```ruby
+begin
+  authorize(@post, :show?)
+rescue Pundit::NotAuthorizedError => e
+  e.query   # => :show?
+  e.record  # => @post
+  e.policy  # => #<PostPolicy @record=... @user=...>
+  e.message # => "not allowed to show? this Post"
+  e.reason  # => nil
+end
+```
+
+#### Internationalization (I18n)
+
+With the help of [ActionView’s translation helpers][#t],
+these attributes can be used to display error messages in different languages,
+or simply to encode them in a config file:
+
+```ruby
+def user_not_authorized(exception)
+ # e.g., "post_policy.update?"
+ translation_key = "#{exception.policy.class.name.underscore}.#{exception.query}"
+
+ flash[:alert] = t "#{translation_key}", scope: "pundit", default: :default
+ redirect_to(request.referrer || root_path)
+end
+```
+
 ```yaml
+# config/locales/en.yml
+
 en:
   pundit:
-    errors:
-      user:
-        paid_subscription_required: 'Paid subscription is required'
-        project_limit_reached: 'Project limit is reached'
+    default: 'You cannot perform this action.'
+    post_policy:
+      update?: 'You cannot edit this post!'
+      create?: 'You cannot create posts!'
+```
+
+For even more control with this approach, you can raise the error explicitly,
+which allows you to manually set the `exception.reason` metadata attribute:
+
+```ruby
+class ProjectPolicy < ApplicationPolicy
+  def create?
+    if !user.has_paid_subscription?
+      raise Pundit::NotAuthorizedError, reason: 'user.paid_subscription_required'
+    elsif user.project_limit_reached?
+      raise Pundit::NotAuthorizedError, reason: 'user.project_limit_reached'
+    end
+
+    true
+  end
+end
+
+class ProjectsController < ApplicationController
+  private
+
+  def user_not_authorized(exception)
+    message = if exception.reason
+                t "#{exception.reason}", scope: "pundit", default: :default
+              else
+                exception.message
+              end
+
+    flash[:error] = message
+    redirect_to(request.referrer || root_path)
+  end
+end
+```
+
+```yaml
+# config/locales/en.yml
+
+en:
+  pundit:
+    default: 'You cannot perform this action.'
+    user:
+      paid_subscription_required: 'Paid subscription is required'
+      project_limit_reached: 'Project limit is reached'
+```
+
+[#t]: https://api.rubyonrails.org/classes/ActionView/Helpers/TranslationHelper.html#method-i-translate
+
+### Customizing `exception.message`
+
+Here’s the default error message that’s given when authorization fails:
+
+```ruby
+>> authorize(@post)
+Pundit::NotAuthorizedError: not allowed to update? this Post
+```
+
+To define your own, set an `#error_message` attribute on your policies:
+
+```ruby
+class ApplicationPolicy
+  attr_accessor :error_message
+end
+
+class PostPolicy < ApplicationPolicy
+  def update?
+    self.error_message = if record.author != user
+                           %("#{post.title}" cannot be edited by #{user})
+                         elsif record.archived?
+                           'cannot update an archived post'
+                         end
+
+    error_message.nil?
+  end
+end
+
+>> authorize(@post)
+Pundit::NotAuthorizedError: cannot update an archived post
 ```
 
 ## Manually retrieving policies and scopes
