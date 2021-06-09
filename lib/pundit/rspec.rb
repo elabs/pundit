@@ -65,7 +65,6 @@ module Pundit
       def self.included(base)
         base.metadata[:type] = :policy
         base.extend Pundit::RSpec::DSL
-        super
       end
     end
   end
