@@ -10,6 +10,8 @@ module Pundit
         match_proc = lambda do |policy|
           @violating_permissions = permissions.find_all do |permission|
             !policy.new(user, record).public_send(permission)
+          rescue Pundit::NotAuthorizedError
+            true
           end
           @violating_permissions.empty?
         end
@@ -17,6 +19,8 @@ module Pundit
         match_when_negated_proc = lambda do |policy|
           @violating_permissions = permissions.find_all do |permission|
             policy.new(user, record).public_send(permission)
+          rescue Pundit::NotAuthorizedError
+            false
           end
           @violating_permissions.empty?
         end

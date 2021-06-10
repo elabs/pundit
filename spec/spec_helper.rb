@@ -35,6 +35,10 @@ class PostPolicy < Struct.new(:user, :post)
     true
   end
 
+  def create?
+    raise Pundit::NotAuthorizedError, reason: 'user.paid_subscription_required'
+  end
+
   def permitted_attributes
     if post.user == user
       %i[title votes]
