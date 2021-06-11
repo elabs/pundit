@@ -205,7 +205,10 @@ is what is passed as the record to `authorize` below.
 
 ```ruby
 # In controllers
-authorize :dashboard, :show?
+def show
+  authorize :dashboard, :show?
+  ...
+end
 ```
 
 ```erb
