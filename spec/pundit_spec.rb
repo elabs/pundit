@@ -538,6 +538,12 @@ RSpec.describe Pundit do
       expect(controller.policy_scope(Post, policy_scope_class: PublicationPolicy::Scope)).to eq :published
     end
 
+    it "allows override policy scope class with extra attributes" do
+      expect(controller.policy_scope(Post, policy_scope_class: PublicationPolicy::Scope, action: "archived")).to(
+        eq(:archived)
+      )
+    end
+
     it "throws an exception if the given policy can't be found" do
       expect { controller.policy_scope(Article) }.to raise_error(Pundit::NotDefinedError)
     end

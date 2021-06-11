@@ -20,6 +20,16 @@ module Pundit
   # @api private
   module Generators; end
 
+  # @api private
+  module ExtraScopeAttributes
+    attr_accessor :extra
+
+    def initialize(*params, **extra)
+      super(*params)
+      self.extra = extra
+    end
+  end
+
   # Error that will be raised when authorization has failed
   class NotAuthorizedError < Error
     attr_reader :query, :record, :policy, :reason
@@ -82,12 +92,16 @@ module Pundit
     # @param scope [Object] the object we're retrieving the policy scope for
     # @raise [InvalidConstructorError] if the policy constructor called incorrectly
     # @return [Scope{#resolve}, nil] instance of scope class which can resolve to a scope
-    def policy_scope(user, scope)
+    def policy_scope(user, scope, **extra)
       policy_scope_class = PolicyFinder.new(scope).scope
       return unless policy_scope_class
 
+      unless policy_scope_class.ancestors.include?(ExtraScopeAttributes)
+        policy_scope_class.prepend(ExtraScopeAttributes)
+      end
+
       begin
-        policy_scope = policy_scope_class.new(user, pundit_model(scope))
+        policy_scope = policy_scope_class.new(user, pundit_model(scope), **extra)
       rescue ArgumentError
         raise InvalidConstructorError, "Invalid #<#{policy_scope_class}> constructor is called"
       end
@@ -103,12 +117,16 @@ module Pundit
     # @raise [NotDefinedError] if the policy scope cannot be found
     # @raise [InvalidConstructorError] if the policy constructor called incorrectly
     # @return [Scope{#resolve}] instance of scope class which can resolve to a scope
-    def policy_scope!(user, scope)
+    def policy_scope!(user, scope, **extra)
       policy_scope_class = PolicyFinder.new(scope).scope!
       return unless policy_scope_class
 
+      unless policy_scope_class.ancestors.include?(ExtraScopeAttributes)
+        policy_scope_class.prepend(ExtraScopeAttributes)
+      end
+
       begin
-        policy_scope = policy_scope_class.new(user, pundit_model(scope))
+        policy_scope = policy_scope_class.new(user, pundit_model(scope), **extra)
       rescue ArgumentError
         raise InvalidConstructorError, "Invalid #<#{policy_scope_class}> constructor is called"
       end
@@ -248,9 +266,13 @@ module Pundit
   # @param scope [Object] the object we're retrieving the policy scope for
   # @param policy_scope_class [Class] the policy scope class we want to force use of
   # @return [Scope{#resolve}, nil] instance of scope class which can resolve to a scope
-  def policy_scope(scope, policy_scope_class: nil)
+  def policy_scope(scope, policy_scope_class: nil, **extra)
     @_pundit_policy_scoped = true
-    policy_scope_class ? policy_scope_class.new(pundit_user, scope).resolve : pundit_policy_scope(scope)
+    return pundit_policy_scope(scope) unless policy_scope_class
+
+    policy_scope_class.prepend(ExtraScopeAttributes) unless policy_scope_class.ancestors.include?(ExtraScopeAttributes)
+
+    policy_scope_class.new(pundit_user, scope, **extra).resolve
   end
 
   # Retrieves the policy for the given record.
@@ -291,6 +313,13 @@ module Pundit
     params.require(PolicyFinder.new(record).param_key)
   end
 
+  # Extra params passed to policy scope.
+  #
+  # @return [Hash] the extra params
+  def policy_scope_extra
+    {}
+  end
+
   # Cache of policies. You should not rely on this method.
   #
   # @api private
@@ -321,6 +350,6 @@ module Pundit
   private
 
   def pundit_policy_scope(scope)
-    policy_scopes[scope] ||= Pundit.policy_scope!(pundit_user, scope)
+    policy_scopes[scope] ||= Pundit.policy_scope!(pundit_user, scope, **policy_scope_extra)
   end
 end

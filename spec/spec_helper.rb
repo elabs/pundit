@@ -53,6 +53,10 @@ class Post < Struct.new(:user)
     :published
   end
 
+  def self.archived
+    :archived
+  end
+
   def self.read
     :read
   end
@@ -98,8 +102,17 @@ class CommentPolicy < Struct.new(:user, :comment)
 end
 
 class PublicationPolicy < Struct.new(:user, :publication)
-  class Scope < Struct.new(:user, :scope)
+  class Scope
+    attr_reader :user, :scope
+
+    def initialize(user, scope)
+      @user = user
+      @scope = scope
+    end
+
     def resolve
+      return scope.archived if extra[:action] == "archived"
+
       scope.published
     end
   end
@@ -208,6 +221,10 @@ class Controller
     @current_user = current_user
     @action_name = action_name
     @params = params
+  end
+
+  def policy_scope_extra
+    super.merge!(action: "edit")
   end
 end
 
