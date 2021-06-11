@@ -1,6 +1,7 @@
 AllCops:
   TargetRubyVersion: 2.6
   Exclude:
+    - "vendor/**/*"
     - "lib/generators/**/templates/**/*"
 
 Metrics/BlockLength:
