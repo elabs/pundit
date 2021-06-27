@@ -163,6 +163,10 @@ module Project
       true
     end
 
+    def destroy?
+      false
+    end
+
     class Scope < Struct.new(:user, :scope)
       def resolve
         scope

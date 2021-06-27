@@ -33,7 +33,8 @@ module Pundit
         @policy = options[:policy]
         @reason = options[:reason]
 
-        message = options.fetch(:message) { "not allowed to #{query} this #{record.class}" }
+        model = record.is_a?(Array) ? record.last : record
+        message = options.fetch(:message) { "not allowed to #{query} this #{model.class}" }
       end
 
       super(message)

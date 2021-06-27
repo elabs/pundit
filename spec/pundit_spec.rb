@@ -66,6 +66,12 @@ RSpec.describe Pundit do
       # rubocop:enable Style/MultilineBlockChain
     end
 
+    it "raises an error whose message contains the model class name when passed record with namespace" do
+      expect do
+        Pundit.authorize(user, [:project, comment], :destroy?)
+      end.to raise_error(Pundit::NotAuthorizedError, "not allowed to destroy? this Comment")
+    end
+
     it "raises an error with a invalid policy constructor" do
       expect do
         Pundit.authorize(user, wiki, :update?)
