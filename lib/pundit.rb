@@ -231,7 +231,7 @@ module Pundit
   # @see https://github.com/varvet/pundit#ensuring-policies-and-scopes-are-used
   # @return [void]
   def skip_authorization
-    @_pundit_policy_authorized = true
+    @_pundit_policy_authorized = :skipped
   end
 
   # Allow this action not to perform policy scoping.
@@ -239,7 +239,7 @@ module Pundit
   # @see https://github.com/varvet/pundit#ensuring-policies-and-scopes-are-used
   # @return [void]
   def skip_policy_scope
-    @_pundit_policy_scoped = true
+    @_pundit_policy_scoped = :skipped
   end
 
   # Retrieves the policy scope for the given record.
